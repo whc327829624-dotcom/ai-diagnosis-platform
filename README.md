@@ -134,8 +134,3 @@ tests/test_api.py::test_create_diagnosis_too_short PASSED
 tests/test_api.py::test_create_diagnosis_empty PASSED
 tests/test_api.py::test_health_check PASSED
 ========================= 9 passed =========================
-```
-
-## 📝 License
-
-MIT
