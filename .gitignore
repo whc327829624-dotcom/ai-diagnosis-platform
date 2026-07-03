@@ -1,0 +1,21 @@
+# 环境变量（含 API Key）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker
+postgres_data/
+
+# 测试
+.pytest_cache/
+htmlcov/
+.coverage

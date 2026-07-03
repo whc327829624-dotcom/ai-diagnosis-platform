@@ -1,0 +1,107 @@
+# ============================================================
+# AI 企业业务流程诊断工作台 — Docker Compose 编排
+# 启动: docker compose up -d
+# 停止: docker compose down
+# ============================================================
+
+services:
+
+  # ==================== PostgreSQL 数据库 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: diagnosis-postgres
+    environment:
+      POSTGRES_USER: diagnosis
+      POSTGRES_PASSWORD: diagnosis123
+      POSTGRES_DB: diagnosis_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diagnosis -d diagnosis_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ==================== Redis 消息队列 ====================
+  redis:
+    image: redis:7-alpine
+    container_name: diagnosis-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ==================== FastAPI 后端 ====================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: diagnosis-backend
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-sk-your-key-here}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: diagnosis
+      POSTGRES_PASSWORD: diagnosis123
+      POSTGRES_DB: diagnosis_db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ==================== Celery Worker ====================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend       # 复用后端镜像
+    container_name: diagnosis-celery
+    command: >
+      celery -A backend.celery_app.celery_app worker
+      --loglevel=info
+      --concurrency=2
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-sk-your-key-here}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: diagnosis
+      POSTGRES_PASSWORD: diagnosis123
+      POSTGRES_DB: diagnosis_db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  # ==================== Streamlit 前端 ====================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: diagnosis-frontend
+    environment:
+      BACKEND_API_URL: http://backend:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# ==================== 持久化卷 ====================
+volumes:
+  postgres_data:

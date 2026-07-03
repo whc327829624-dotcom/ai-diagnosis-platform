@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 复制依赖文件
+COPY requirements.frontend.txt .
+RUN pip install --no-cache-dir -r requirements.frontend.txt
+
+# 复制前端代码
+COPY frontend/ ./frontend/
+
+# 暴露 Streamlit 默认端口
+EXPOSE 8501
+
+# 启动命令
+CMD ["streamlit", "run", "frontend/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
